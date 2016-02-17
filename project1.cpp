@@ -208,6 +208,7 @@ int main ()
 				execvp(*tokens, tokens);
 			}
 		}
+        //close all pipes and if not valid command?
 		for(int i = 0;i<pipe_count+1;i++){
 			wait();
 		}
