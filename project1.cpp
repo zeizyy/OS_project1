@@ -17,17 +17,21 @@ void print_arr(char* arr[], int size){
 }
 
 void close_all(int* pipes, int pipe_count){
-	for(int i =0;i<pipe_count;i++){
+	for(int i =0;i<pipe_count*2;i++){
 		close(pipes[i]);
 	}
 }
 
 void parsing_error(){
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 void exec_error(){
-	exit(2);
+	exit(EXIT_FAILURE);
+}
+
+void file_error() {
+	exit(EXIT_FAILURE);
 }
 
 // convert to c_str
@@ -38,10 +42,14 @@ void str_to_c(char* command, int command_size, string line){
 	command[command_size] = '\0';
 }
 
-void open_file_write(char* file, int& outFile){
+void open_file_write(char* file, int& outFile, bool& stdout_assigned){
+	if(stdout_assigned){
+		exit(EXIT_FAILURE);
+	}
+	stdout_assigned = true;
 	outFile = open(file, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
 	if (outFile < 0) {
-		fprintf(stderr, "%s\n", "Error opening output file.");
+		file_error();
 	}
 	if (outFile > 0) {
 		dup2(outFile, 1);
@@ -49,10 +57,14 @@ void open_file_write(char* file, int& outFile){
 	}
 }
 
-void open_file_read(char* file, int& inFile) {
+void open_file_read(char* file, int& inFile, bool& stdin_assigned) {
+	if(stdin_assigned){
+		exit(EXIT_FAILURE);
+	}
+	stdin_assigned = true;
 	inFile = open(file, O_RDONLY);
 	if (inFile < 0) {
-		fprintf(stderr, "%s\n", "Error opening input file.");
+		file_error();
 	}
 	dup2(inFile, 0);
 	close(inFile);
@@ -70,6 +82,28 @@ void recover_IO(int& stdin_backup, int& stdout_backup){
 	close(stdout_backup);
 }
 
+bool is_valid_char(char c){
+	bool is_digit = c >= 48 && c <58;
+	bool is_letter = (c>=65 && c<91) || (c>=97 && c<123);
+	bool is_symbol = c=='-' || c=='.' || c=='_';
+	return is_digit||is_letter||is_symbol;
+}
+
+bool is_valid_word(char* word){
+	while((*word)!=0){
+		if(!is_valid_char(*word)){
+			return false;
+		}
+		word+=1;
+	}
+	return true;
+}
+
+void exit_if_not_valid(char* word){
+	if(!is_valid_word(word))
+		parsing_error();
+}
+
 
 int main ()
 {
@@ -79,11 +113,15 @@ int main ()
 	int status;
 	// exit token
 	string ext("exit");
+	// c_str for > and <
+	char greater[] = ">";
+	char less[] = "<";
 	while(getline(cin,line)){
 		if(line.compare(ext)==0){
 			printf("Bye!\n");
 			exit(0);
 		}
+
 		int command_size = line.size();
 			if(command_size>MAXSIZE){
 				printf("Too long!\n");
@@ -133,9 +171,7 @@ int main ()
 					pipe(pipes+i*2);
 				}
 			}
-			// stdin_assigned/stdout_assigned
-			bool stdin_assigned = false;
-			bool stdout_assigned = false;
+			
 			// back up stdin and out for the whole command
 			int stdin_backup = -1;
 			int stdout_backup = -1;
@@ -154,121 +190,122 @@ int main ()
 				char* file2;
 				int inFile = -1;
 				int outFile = -1;
-
+				
+				
 				// split and store in tokens
 				char* token = strtok(tg," ");
 				while(token != NULL){
 					// read tokens until a > or < is reached
-					if(token[0]=='>' || token[0]=='<'){ //edge cases: ">>>>" '<sdsewd' 
+					if(strcmp(token, greater) == 0 || strcmp(token, less)== 0){ //edge cases: ">>>>" '<sdsewd' 
 						//if redirect1 is empty
 						if (redirect1 == '\0') {
 							redirect1 = token[0];
 							break;
 						}
 					}
+					
+					exit_if_not_valid(token);
+
 					tokens[token_index] = token;
 					token_index++;
 					// printf("Token: %s\n", token);
 					token = strtok(NULL," ");
 				}
+				// close tokens
+				tokens[token_index] = NULL;
 
-				// empty token group
+				// too see if there is empty token group
 				if(token_index==0)
 					parsing_error();
 
-				// close tokens
-				tokens[token_index] = NULL;
-				// TODO: pan duan start with redirect !!!
-				// parse input/output rediretion
-				if(redirect1!='\0'){
-					// can only be file !!!
-					token = strtok(NULL," ");
-					if(token==NULL){
-						parsing_error();
-					} else {
-						file1 = token;
-						if (redirect1=='<'){
-							if(stdin_assigned)
-								parsing_error();
-							open_file_read(file1, inFile);
-							stdin_assigned = true;
-						} else {
-							if(stdout_assigned)
-								parsing_error();
-							open_file_write(file1, outFile);
-							stdout_assigned = true;
-						}
-
-					}
-					// can only be >
-					token = strtok(NULL," ");
-					if(token!=NULL){
-						if(token[0]=='>'){
-							// can only be file name
-							token = strtok(NULL," ");
-							if(token == NULL){
-								parsing_error();
-							} else {
-								if(stdout_assigned)
-									parsing_error();
-								open_file_write(file2, outFile);
-								stdout_assigned = true;
-								token = strtok(NULL," ");
-								if(token!=NULL){
-									parsing_error();
-								}
-							}
-						} else {
-							parsing_error();
-						}
-					}
-				}
-
 				// do the work
 				if(fork()==0){
+					// stdin_assigned/stdout_assigned
+					bool stdin_assigned = false;
+					bool stdout_assigned = false;
+
 					if(pipe_count!=0){
 						if(i == 0){
-							if(stdout_assigned){
-								parsing_error();
-							}
 							dup2(pipes[i*2+1],1);
+							stdout_assigned = true;
 						}else if(i==pipe_count){
-							if(stdin_assigned){
-								parsing_error();
-							}
 							dup2(pipes[i*2-2],0);
+							stdin_assigned = true;
 						}else{
-							if(stdin_assigned || stdout_assigned){
-								parsing_error();
-							}
 							dup2(pipes[i*2-2],0);
 							dup2(pipes[i*2+1],1);
+							stdout_assigned = true;
+							stdin_assigned = true;
 						}
 						close_all(pipes,pipe_count);
 					}
+
+					// parse input/output rediretion
+					if(redirect1!='\0'){
+						// can only be file
+						token = strtok(NULL," ");
+						if(token==NULL){
+							parsing_error();
+						} else {
+							exit_if_not_valid(token);
+							file1 = token;
+							if (redirect1=='<'){
+								if(stdin_assigned)
+									parsing_error();
+								open_file_read(file1, inFile, stdin_assigned);
+							} else {
+								if(stdout_assigned)
+									parsing_error();
+								open_file_write(file1, outFile, stdout_assigned);
+							}
+
+						}
+						// can only be > or NULL
+						token = strtok(NULL," ");
+						if(token!=NULL){
+							if(strcmp(token, greater)==0){
+								// can only be file name
+								token = strtok(NULL," ");
+								if(token == NULL){
+									parsing_error();
+								} else {
+									exit_if_not_valid(token);
+									if(stdout_assigned)
+										parsing_error();
+									open_file_write(file2, outFile, stdout_assigned);
+									token = strtok(NULL," ");
+									if(token!=NULL){
+										parsing_error();
+									}
+								}
+							} else {
+								parsing_error();
+							}
+						}
+					}
 					execvp(*tokens, tokens);
-					printf("HAHA\n");
 					exec_error();
 				}
 			}
-	        //close all pipes and if not valid command?
 	        
 	        close_all(pipes,pipe_count);
 	        recover_IO(stdin_backup, stdout_backup);
-	        int status2=0;
+	        bool has_error = false;
 	        for(int i = 0;i<group_index;i++){
 				wait(&status);
 				if(status!=0){
-					status2 = status;
+					has_error = true;
 				}
 			}
-			exit(status2);
+			if(has_error){
+				exit(EXIT_FAILURE);
+			} else {
+				exit(0);
+			}
 		}
 		wait(&status_driver);
-		if(status_driver==1){
-			printf("ERROR: Parsing error\n");
-		} else if(status_driver==2){
-			printf("ERROR: Parsing error\n");
+		if(status_driver!=0){
+			printf("ERROR: Some error occurs.\n");
 		}
 	}
 	return 0;
