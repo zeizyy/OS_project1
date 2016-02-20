@@ -272,6 +272,7 @@ int main ()
 									exit_if_not_valid(token);
 									if(stdout_assigned)
 										parsing_error();
+									file2 = token;
 									open_file_write(file2, outFile, stdout_assigned);
 									token = strtok(NULL," ");
 									if(token!=NULL){
