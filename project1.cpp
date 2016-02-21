@@ -5,15 +5,29 @@
 #include <string>
 #include <unistd.h>
 #include <fcntl.h>
+// #include <sys/types.h>
+// #include <sys/wait.h>
+#include <sys/wait.h>
 #define MAXSIZE 80
 using namespace std;
 // TODO:
 // hard code parsing part: file name, word
+
+// back up stdin and out for the whole command
+static int stdin_backup;
+static int stdout_backup;
 void print_arr(char* arr[], int size){
 	for(int i =0;i<size;i++){
 		printf("%s ", arr[i]);
 	}
 	printf("\n");
+}
+
+void recover_IO(){
+	dup2(stdin_backup, 0);
+	dup2(stdout_backup, 1);
+	close(stdin_backup);
+	close(stdout_backup);
 }
 
 void close_all(int* pipes, int pipe_count){
@@ -23,14 +37,20 @@ void close_all(int* pipes, int pipe_count){
 }
 
 void parsing_error(){
+	recover_IO();
+	printf("Error: parsing error.");
 	exit(EXIT_FAILURE);
 }
 
 void exec_error(){
+	recover_IO();
+	printf("Error: execution error.");
 	exit(EXIT_FAILURE);
 }
 
 void file_error() {
+	recover_IO();
+	printf("Error: file error.");
 	exit(EXIT_FAILURE);
 }
 
@@ -75,12 +95,6 @@ void backup_IO(int& stdin_backup, int& stdout_backup){
 	stdout_backup = dup(1);
 }
 
-void recover_IO(int& stdin_backup, int& stdout_backup){
-	dup2(stdin_backup, 0);
-	dup2(stdout_backup, 1);
-	close(stdin_backup);
-	close(stdout_backup);
-}
 
 bool is_valid_char(char c){
 	bool is_digit = c >= 48 && c <58;
@@ -125,9 +139,10 @@ int main ()
 		int command_size = line.size();
 			if(command_size>MAXSIZE){
 				printf("Too long!\n");
+				parsing_error();
 			}
 
-		// fork a sandbox in parent
+		//fork a sandbox in parent
 		if(fork()==0){
 			int command_size = line.size();
 			if(command_size>MAXSIZE){
@@ -143,6 +158,8 @@ int main ()
 			for(int i=0; i<command_size; i++){
 				char c = command[i];
 				if(c=='|'){
+					if(i!=0 && i!=command_size-1 && (command[i-1]!=' ' or command[i+1]!=' '))
+						parsing_error();
 					pipe_count++;
 				}
 			}
@@ -158,8 +175,8 @@ int main ()
 				group_index++;
 				token_group = strtok (NULL, "|");
 			}
-
-			// to see if the token group is empty
+			// to see if the token group is empty and if there are spaces before and after "|"
+			
 			if(pipe_count != group_index-1){
 				parsing_error();
 			}
@@ -172,9 +189,7 @@ int main ()
 				}
 			}
 			
-			// back up stdin and out for the whole command
-			int stdin_backup = -1;
-			int stdout_backup = -1;
+
 			backup_IO(stdin_backup,stdout_backup);
 
 			//for each token_group, tokenize it into tokens
@@ -290,7 +305,7 @@ int main ()
 			}
 	        
 	        close_all(pipes,pipe_count);
-	        recover_IO(stdin_backup, stdout_backup);
+	        recover_IO();
 	        bool has_error = false;
 	        for(int i = 0;i<group_index;i++){
 				wait(&status);
@@ -302,12 +317,16 @@ int main ()
 				exit(EXIT_FAILURE);
 			} else {
 				exit(0);
-			}
+			
+		}
 		}
 		wait(&status_driver);
-		if(status_driver!=0){
-			printf("ERROR: Some error occurs.\n");
-		}
+		// if(status_driver!=0){
+		// 	printf("ERROR: Some error occurs.\n");
+		// }
 	}
 	return 0;
 }
+
+
+//edge case 1: sort < out |grep 1   done!
