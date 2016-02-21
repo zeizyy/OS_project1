@@ -1,2 +1,9 @@
--rw-rw-r-- 1 yixuan yixuan   427 Feb 21 13:42 outfile
+total 48
+-rwxrwxr-x 1 yixuan yixuan 19607 Feb 21 16:00 a.out
+-rw-rw-r-- 1 yixuan yixuan    46 Feb 21 11:24 hi1
+-rw-rw-r-- 1 yixuan yixuan    51 Feb 21 11:24 hi22
 -rw-rw-r-- 1 yixuan yixuan    42 Feb 21 11:24 in
+-rw-rw-r-- 1 yixuan yixuan    43 Feb 21 11:24 infile
+-rw-rw-r-- 1 yixuan yixuan    50 Feb 21 15:49 out
+-rw-rw-r-- 1 yixuan yixuan     0 Feb 21 16:01 outfile
+-rw-rw-r-- 1 yixuan yixuan  6921 Feb 21 15:59 project1.cpp

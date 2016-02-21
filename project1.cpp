@@ -8,6 +8,7 @@
 // #include <sys/types.h>
 // #include <sys/wait.h>
 #include <sys/wait.h>
+#include <sys/types.h> 
 #define MAXSIZE 80
 using namespace std;
 // TODO:
@@ -16,6 +17,7 @@ using namespace std;
 // back up stdin and out for the whole command
 static int stdin_backup;
 static int stdout_backup;
+static bool error_flag = false;
 void print_arr(char* arr[], int size){
 	for(int i =0;i<size;i++){
 		printf("%s ", arr[i]);
@@ -38,19 +40,22 @@ void close_all(int* pipes, int pipe_count){
 
 void parsing_error(){
 	recover_IO();
-	printf("Error: parsing error.");
+	error_flag = true;
+	//printf("Error: parsing error.");
 	exit(EXIT_FAILURE);
 }
 
 void exec_error(){
 	recover_IO();
-	printf("Error: execution error.");
+	error_flag = true;
+	//printf("Error: execution error.");
 	exit(EXIT_FAILURE);
 }
 
 void file_error() {
 	recover_IO();
-	printf("Error: file error.");
+	error_flag = true;	
+	//printf("Error: file error.");
 	exit(EXIT_FAILURE);
 }
 
@@ -123,7 +128,7 @@ int main ()
 {
 	// store the raw command
 	string line;
-	int status_driver;
+	//int status_driver;
 	int status;
 	// exit token
 	string ext("exit");
@@ -131,6 +136,8 @@ int main ()
 	char greater[] = ">";
 	char less[] = "<";
 	while(getline(cin,line)){
+		// printf("new command!\n");
+		error_flag = false;
 		if(line.compare(ext)==0){
 			printf("Bye!\n");
 			exit(0);
@@ -149,178 +156,177 @@ int main ()
 				parsing_error();
 			}
 
-			// c_str for command
-			char command[command_size+1];
-			str_to_c(command, command_size, line);
-			
-			// count number of processes
-			int pipe_count = 0;
-			for(int i=0; i<command_size; i++){
-				char c = command[i];
-				if(c=='|'){
-					if(i!=0 && i!=command_size-1 && (command[i-1]!=' ' or command[i+1]!=' '))
-						parsing_error();
-					pipe_count++;
-				}
-			}
-
-			// store an array of token_groups (c_str)
-			char* token_groups[pipe_count+1];
-			int group_index = 0;
-			// store the token_group into token_groups
-			char* token_group;
-			token_group = strtok (command,"|");
-			while (token_group != NULL){
-				token_groups[group_index] = token_group;
-				group_index++;
-				token_group = strtok (NULL, "|");
-			}
-			// to see if the token group is empty and if there are spaces before and after "|"
-			
-			if(pipe_count != group_index-1){
-				parsing_error();
-			}
-
-			// create pipes
-			int pipes[pipe_count*2];
-			if(pipe_count!=0){
-				for(int i = 0; i < pipe_count;i++){
-					pipe(pipes+i*2);
-				}
-			}
-			
-
-			backup_IO(stdin_backup,stdout_backup);
-
-			//for each token_group, tokenize it into tokens
-			for(int i = 0; i<group_index;i++){
-				// current token_group
-				char* tg = token_groups[i];
-				// token array
-				char* tokens[MAXSIZE];
-				int token_index=0;
-				// redirects and files
-				char redirect1='\0';
-				char* file1;
-				char* file2;
-				int inFile = -1;
-				int outFile = -1;
-				
-				
-				// split and store in tokens
-				char* token = strtok(tg," ");
-				while(token != NULL){
-					// read tokens until a > or < is reached
-					if(strcmp(token, greater) == 0 || strcmp(token, less)== 0){ //edge cases: ">>>>" '<sdsewd' 
-						//if redirect1 is empty
-						if (redirect1 == '\0') {
-							redirect1 = token[0];
-							break;
-						}
-					}
-					
-					exit_if_not_valid(token);
-
-					tokens[token_index] = token;
-					token_index++;
-					// printf("Token: %s\n", token);
-					token = strtok(NULL," ");
-				}
-				// close tokens
-				tokens[token_index] = NULL;
-
-				// too see if there is empty token group
-				if(token_index==0)
+		// c_str for command
+		char command[command_size+1];
+		str_to_c(command, command_size, line);
+		
+		// count number of processes
+		int pipe_count = 0;
+		for(int i=0; i<command_size; i++){
+			char c = command[i];
+			if(c=='|'){
+				if(i!=0 && i!=command_size-1 && (command[i-1]!=' ' or command[i+1]!=' '))
 					parsing_error();
+				pipe_count++;
+			}
+		}
 
-				// do the work
-				if(fork()==0){
-					// stdin_assigned/stdout_assigned
-					bool stdin_assigned = false;
-					bool stdout_assigned = false;
+		// store an array of token_groups (c_str)
+		char* token_groups[pipe_count+1];
+		int group_index = 0;
+		// store the token_group into token_groups
+		char* token_group;
+		token_group = strtok (command,"|");
+		while (token_group != NULL){
+			token_groups[group_index] = token_group;
+			group_index++;
+			token_group = strtok (NULL, "|");
+		}
+		// to see if the token group is empty and if there are spaces before and after "|"
+		
+		if(pipe_count != group_index-1){
+			parsing_error();
+		}
 
-					if(pipe_count!=0){
-						if(i == 0){
-							dup2(pipes[i*2+1],1);
-							stdout_assigned = true;
-						}else if(i==pipe_count){
-							dup2(pipes[i*2-2],0);
-							stdin_assigned = true;
-						}else{
-							dup2(pipes[i*2-2],0);
-							dup2(pipes[i*2+1],1);
-							stdout_assigned = true;
-							stdin_assigned = true;
-						}
-						close_all(pipes,pipe_count);
+		// create pipes
+		int pipes[pipe_count*2];
+		if(pipe_count!=0){
+			for(int i = 0; i < pipe_count;i++){
+				pipe(pipes+i*2);
+			}
+		}
+
+		backup_IO(stdin_backup,stdout_backup);
+
+		//for each token_group, tokenize it into tokens
+		for(int i = 0; i<group_index;i++){
+			// current token_group
+			char* tg = token_groups[i];
+			// token array
+			char* tokens[MAXSIZE];
+			int token_index=0;
+			// redirects and files
+			char redirect1='\0';
+			char* file1;
+			char* file2;
+			int inFile = -1;
+			int outFile = -1;
+			
+			
+			// split and store in tokens
+			char* token = strtok(tg," ");
+			while(token != NULL){
+				// read tokens until a > or < is reached
+				if(strcmp(token, greater) == 0 || strcmp(token, less)== 0){ //edge cases: ">>>>" '<sdsewd' 
+					//if redirect1 is empty
+					if (redirect1 == '\0') {
+						redirect1 = token[0];
+						break;
 					}
+				}
+				
+				exit_if_not_valid(token);
 
-					// parse input/output rediretion
-					if(redirect1!='\0'){
-						// can only be file
-						token = strtok(NULL," ");
-						if(token==NULL){
-							parsing_error();
+				tokens[token_index] = token;
+				token_index++;
+				// printf("Token: %s\n", token);
+				token = strtok(NULL," ");
+			}
+			// close tokens
+			tokens[token_index] = NULL;
+
+			// too see if there is empty token group
+			if(token_index==0)
+				parsing_error();
+
+			// do the work
+			if(fork()==0){
+				// printf("forked\n");
+				// stdin_assigned/stdout_assigned
+				bool stdin_assigned = false;
+				bool stdout_assigned = false;
+
+				if(pipe_count!=0){
+					if(i == 0){
+						dup2(pipes[i*2+1],1);
+						stdout_assigned = true;
+					}else if(i==pipe_count){
+						dup2(pipes[i*2-2],0);
+						stdin_assigned = true;
+					}else{
+						dup2(pipes[i*2-2],0);
+						dup2(pipes[i*2+1],1);
+						stdout_assigned = true;
+						stdin_assigned = true;
+					}
+					close_all(pipes,pipe_count);
+				}
+
+				// parse input/output rediretion
+				if(redirect1!='\0'){
+					// can only be file
+					token = strtok(NULL," ");
+					if(token==NULL){
+						parsing_error();
+					} else {
+						exit_if_not_valid(token);
+						file1 = token;
+						if (redirect1=='<'){
+							if(stdin_assigned)
+								parsing_error();
+							open_file_read(file1, inFile, stdin_assigned);
 						} else {
-							exit_if_not_valid(token);
-							file1 = token;
-							if (redirect1=='<'){
-								if(stdin_assigned)
-									parsing_error();
-								open_file_read(file1, inFile, stdin_assigned);
+							if(stdout_assigned)
+								parsing_error();
+							open_file_write(file1, outFile, stdout_assigned);
+						}
+
+					}
+					// can only be > or NULL
+					token = strtok(NULL," ");
+					if(token!=NULL){
+						if(strcmp(token, greater)==0){
+							// can only be file name
+							token = strtok(NULL," ");
+							if(token == NULL){
+								parsing_error();
 							} else {
+								exit_if_not_valid(token);
 								if(stdout_assigned)
 									parsing_error();
-								open_file_write(file1, outFile, stdout_assigned);
-							}
-
-						}
-						// can only be > or NULL
-						token = strtok(NULL," ");
-						if(token!=NULL){
-							if(strcmp(token, greater)==0){
-								// can only be file name
+								file2 = token;
+								open_file_write(file2, outFile, stdout_assigned);
 								token = strtok(NULL," ");
-								if(token == NULL){
+								if(token!=NULL){
 									parsing_error();
-								} else {
-									exit_if_not_valid(token);
-									if(stdout_assigned)
-										parsing_error();
-									file2 = token;
-									open_file_write(file2, outFile, stdout_assigned);
-									token = strtok(NULL," ");
-									if(token!=NULL){
-										parsing_error();
-									}
 								}
-							} else {
-								parsing_error();
 							}
+						} else {
+							parsing_error();
 						}
 					}
-					execvp(*tokens, tokens);
-					exec_error();
 				}
+				execvp(*tokens, tokens);
+				// exec_error();
 			}
+		}
 	        
-	        close_all(pipes,pipe_count);
-	        recover_IO();
-	        bool has_error = false;
-	        for(int i = 0;i<group_index;i++){
-				wait(&status);
-				if(status!=0){
-					has_error = true;
-				}
+        close_all(pipes,pipe_count);
+        recover_IO();
+        bool has_error = false;
+        for(int i = 0;i<group_index;i++){
+			wait(&status);
+			if(status!=0){
+				has_error = true;
 			}
-			if(has_error){
-				exit(EXIT_FAILURE);
-			} else {
-				exit(0);
-			
 		}
-		}
-		wait(&status_driver);
+
+		if(error_flag){
+			printf("Error.\n");
+		} 
+	}
+
+		wait(NULL);
 		// if(status_driver!=0){
 		// 	printf("ERROR: Some error occurs.\n");
 		// }
