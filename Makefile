@@ -1,11 +1,10 @@
 CXX=g++
-OFILES=project2.cpp
+OFILES=project1.cpp
 .SUFFIXES: .o .cpp
 
 wordPuzzle: $(OFILES)
-	$(CXX) $(OFILES)
-	./a.out
+	$(CXX) -o shell $(OFILES)
+	./shell
 
 clean:
 	-rm -f *.o *.cpp~
-

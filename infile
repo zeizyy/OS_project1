@@ -1,16 +1,9 @@
-Makefile
-OS write up.docx
-a.out
-grep
-hi1
-hi22
-in
-infile
-infile1
-out
-outfile
-outfilel
-project1.cpp
-project2.cpp
-wc
-~$ write up.docx
+total 288
+-rw-r--r--  1 ian_zheng  staff    132 Feb 22 13:36 Makefile
+-rw-------@ 1 ian_zheng  staff  99982 Feb 21 20:40 OS write up.docx
+-rw-r-----  1 ian_zheng  staff      0 Feb 22 15:48 infile
+-rw-r-----  1 ian_zheng  staff     86 Feb 22 15:47 outfile
+-rw-r-----  1 ian_zheng  staff      0 Feb 22 15:34 outfilel
+-rw-r--r--  1 ian_zheng  staff   6967 Feb 22 15:46 project1.cpp
+-rwxr-xr-x  1 ian_zheng  staff  21072 Feb 22 15:46 shell
+-rw-------@ 1 ian_zheng  staff    162 Feb 21 19:57 ~$ write up.docx
