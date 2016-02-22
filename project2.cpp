@@ -24,14 +24,17 @@ void close_all(int* pipes, int pipe_count){
 }
 
 void parsing_error(){
+	printf("ERROR: Parsing error.");
 	exit(EXIT_FAILURE);
 }
 
 void exec_error(){
+	printf("ERROR: Excecution error.");
 	exit(EXIT_FAILURE);
 }
 
 void file_error() {
+	printf("ERROR: File I/O error.");
 	exit(EXIT_FAILURE);
 }
 
@@ -119,21 +122,17 @@ int main ()
 	char less[] = "<";
 	while(getline(cin,line)){
 		if(line.compare(ext)==0){
-			printf("Bye!\n");
 			exit(0);
 		}
 
 		int command_size = line.size();
-			if(command_size>MAXSIZE){
-				printf("Too long!\n");
-			}
+		if(command_size>MAXSIZE){
+			printf("ERROR: The command is too long!\n");
+			continue;
+		}
 
 		// fork a sandbox in parent
 		if(fork()==0){
-			int command_size = line.size();
-			if(command_size>MAXSIZE){
-				parsing_error();
-			}
 
 			// c_str for command
 			char command[command_size+1];
@@ -248,17 +247,25 @@ int main ()
 						// can only be file
 						token = strtok(NULL," ");
 						if(token==NULL){
+							recover_IO(stdin_backup, stdout_backup);
 							parsing_error();
 						} else {
-							exit_if_not_valid(token);
+							if(!is_valid_word(token)){
+								recover_IO(stdin_backup, stdout_backup);
+								parsing_error();
+							}
 							file1 = token;
 							if (redirect1=='<'){
-								if(stdin_assigned)
+								if(stdin_assigned){
+									recover_IO(stdin_backup, stdout_backup);
 									parsing_error();
+								}
 								open_file_read(file1, inFile, stdin_assigned);
 							} else {
-								if(stdout_assigned)
+								if(stdout_assigned){
+									recover_IO(stdin_backup, stdout_backup);
 									parsing_error();
+								}
 								open_file_write(file1, outFile, stdout_assigned);
 							}
 
@@ -270,19 +277,28 @@ int main ()
 								// can only be file name
 								token = strtok(NULL," ");
 								if(token == NULL){
+									recover_IO(stdin_backup, stdout_backup);
 									parsing_error();
 								} else {
-									exit_if_not_valid(token);
-									if(stdout_assigned)
+									if(!is_valid_word(token)){
+										recover_IO(stdin_backup, stdout_backup);
 										parsing_error();
+									}
+									
+									if(stdout_assigned){
+										recover_IO(stdin_backup, stdout_backup);
+										parsing_error();
+									}
 									file2 = token;
 									open_file_write(file2, outFile, stdout_assigned);
 									token = strtok(NULL," ");
 									if(token!=NULL){
+										recover_IO(stdin_backup, stdout_backup);
 										parsing_error();
 									}
 								}
 							} else {
+								recover_IO(stdin_backup, stdout_backup);
 								parsing_error();
 							}
 						}
@@ -309,7 +325,7 @@ int main ()
 		}
 		wait(&status_driver);
 		if(status_driver!=0){
-			printf("ERROR: Some error occurs.\n");
+			printf("\n");
 		}
 	}
 	return 0;
