@@ -303,6 +303,7 @@ int main ()
 						}
 					}
 					execvp(*tokens, tokens);
+					recover_IO(stdin_backup, stdout_backup);
 					exec_error();
 				}
 
