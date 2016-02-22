@@ -33,7 +33,8 @@ void file_error() {
 }
 
 void word_error() {
-	printf("ERROR: The word contains illegal character(s).\n");
+	printf("ERROR: Word(s) in command contains illegal character(s).\n");
+	exit(EXIT_FAILURE);
 }
 
 // convert to c_str
@@ -118,7 +119,7 @@ int main ()
 	while(getline(cin,line)){
 		// checking "exit"
 		if(line.compare(ext)==0){
-			exit(0);
+			break;
 		}
 
 		// checking length
@@ -192,7 +193,7 @@ int main ()
 				char* token = strtok(tg," ");
 				while(token != NULL){
 					// read tokens until a > or < is reached
-					if(strcmp(token, greater) == 0 || strcmp(token, less)== 0){ //edge cases: ">>>>" '<sdsewd' 
+					if(strcmp(token, greater) == 0 || strcmp(token, less)== 0){
 						//if redirect1 is empty
 						if (redirect1 == '\0') {
 							redirect1 = token[0];
@@ -206,7 +207,6 @@ int main ()
 
 					tokens[token_index] = token;
 					token_index++;
-					// printf("Token: %s\n", token);
 					token = strtok(NULL," ");
 				}
 				// close tokens
