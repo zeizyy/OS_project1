@@ -8,8 +8,7 @@
 #include <sys/wait.h>
 #define MAXSIZE 80
 using namespace std;
-// TODO:
-// hard code parsing part: file name, word
+
 void print_arr(char* arr[], int size){
 	for(int i =0;i<size;i++){
 		printf("%s ", arr[i]);
@@ -284,7 +283,7 @@ int main ()
 										recover_IO(stdin_backup, stdout_backup);
 										parsing_error();
 									}
-									
+
 									if(stdout_assigned){
 										recover_IO(stdin_backup, stdout_backup);
 										parsing_error();
@@ -306,6 +305,7 @@ int main ()
 					execvp(*tokens, tokens);
 					exec_error();
 				}
+
 			}
 	        
 	        close_all(pipes,pipe_count);
